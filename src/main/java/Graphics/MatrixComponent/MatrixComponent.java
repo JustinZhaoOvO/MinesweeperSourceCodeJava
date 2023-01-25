@@ -1,10 +1,7 @@
 package Graphics.MatrixComponent;
 //CreateTime: 2023-01-20 10:45 p.m.
 
-import GlobalParameters.Constant;
-import GlobalParameters.Difficulty;
-import GlobalParameters.Images;
-import GlobalParameters.StaticMethod;
+import GlobalParameters.*;
 import Graphics.Window.Window;
 import Graphics.Window.windowContentPanel;
 import MinesGenerator.MinesGenerator;
@@ -12,6 +9,8 @@ import Util.Coordinate;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.print.PrinterAbortException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -70,8 +69,10 @@ public class MatrixComponent extends JPanel {
     
     //unexposed cell number, when all cell is exposed, user won
     private int unexposedCellsNum;
-    //to store the coordinate of cells need to be updated(repaint)
-    private ArrayDeque<int[]> uopdateDeque;
+    //to store mines coordinate
+    private ArrayDeque<int[]> MinesDeque;
+
+    private Timer minesExplosion;
 
     /**
      * constructor
@@ -103,6 +104,8 @@ public class MatrixComponent extends JPanel {
         this.column = difficulty.getCOLUMN();
         this.unexposedCellsNum = row * column;
         this.length = difficulty.getCELLLEN();
+        this.MinesDeque = new ArrayDeque<>();
+        if (this.minesExplosion != null) minesExplosion.stop();
         matrixStatus = new char[row][column];
         this.repaint();
     }
@@ -233,13 +236,29 @@ public class MatrixComponent extends JPanel {
      * @param x : x coordinate
      */
     public void ClickedAMine(int y, int x){
-
+        Sound.BOMB.play();
+        MinesDeque.add(new int[]{y, x});
         for (int i = 0; i < row; i ++){
             for (int j = 0; j < column; j++){
-                if (matrix[i][j] == Constant.MINE) matrixStatus[i][j] = Constant.MINE;
+                if (matrix[i][j] == Constant.MINE)MinesDeque.add(new int[]{i, j});
             }
         }
-        matrixStatus[y][x] = Constant.EXPLOSION;
+        MatrixComponent self = this;
+        ActionListener al = e -> {
+            if (!MinesDeque.isEmpty()){
+                int[] cur = MinesDeque.pollFirst();
+                int i = cur[0];
+                int j = cur[1];
+                matrixStatus[i][j] = Constant.MINE;
+                if (i == y && j == x) matrixStatus[y][x] = Constant.EXPLOSION;
+                self.repaint();
+
+            }
+        };
+
+        this.minesExplosion = new Timer(50, al);
+        minesExplosion.start();
+
         root.stopTimer();
         root.getHeader().lost();
         disabledListener = true;
